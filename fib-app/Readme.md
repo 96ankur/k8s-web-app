@@ -1,0 +1,4 @@
+->  kubectl create secret generic pgpassword --from-literal PGPASSWORD=postgres_password
+->  kubectl apply -f k8s
+->  minikube ip
+->  visit the ip (of above)
