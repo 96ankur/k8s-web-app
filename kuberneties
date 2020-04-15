@@ -1,0 +1,140 @@
+
+
+minikube(only for local environment) is used to create kubernetes cluster on the local machine. Behind the secene it creates a virtual machine,
+purpose of this VM is to run some number of container
+
+In order to interact with the VM, we will use kubectl (It is a program which is used to interact with the
+kubernetes cluster, both for dev and prod)
+
+->  In kubernetes, we feed config files to the kubectl which generates specific types of objects
+    for each config file depending on the value of "kind" property in the config file.
+->  Object referes to a thing that exist within the kubernetes cluster. 
+->  Object serves different puposes:
+    - Running a container
+    - monitoring a container
+    - setting up networking
+
+->  Different type of "apiVersion" supports different types of object.
+
+===============================> POD <==========================================================
+
+                                pod box inside node box
+
+-> Virtual machine created by the minikube is referred to as "Node".
+->  A Node is used by kubernetes to run some number of objects.
+->  In kubernetes, we cannot run alone a single container. The smallest thing that can run in kubernetes is
+    a pod. Therefore, we always deploy container in a pod.
+->  Why pod is required?
+    So that we can run multiple different container inside it. But we can group many different container but
+    with very similar purpose. That is, we will group only those container with very tightly coupled relationship
+
+
+=>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> SERVICES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<=
+
+->  This object sets up networking in a kubernetes cluster
+->  Service object has 4 sub-types
+    - ...
+    - ...
+    - ...
+    - ...
+
+->  how Service works
+                        image
+
+    ->  Each and every container has a program that called 'kube-proxy', it is the only way for entering inside
+        the node. What it does is routes the incoming request to the different pods and services the have
+        created inside the node.
+
+    ->  when Service Node port receives a request, then it forward the request to the specified port of the
+        container that is running in the pod.
+
+==================> what happen when we feed config file to kubectl <=====================================
+
+see image
+
+===========================================================================================================
+    
+    When we update the config file then kubectl does not create new pod, rather it upates the same pod,
+    until and unless name of the pod remains same
+
+                        see how update of pod works.png
+
+===========================================================================================================
+                            Limitation in updating config file.png (see image)
+
+    ->  To resolve this issue we will use a new type of object named "DEPLOYMENT"
+                                    
+                                    see image pod vs Deployment
+
+    ->  A Deployment maintains a set of identical pods, ensuring that they have the correct config and that
+        the right number exixts. Behind the secene a deployemnt uses pods
+
+                                    see what is deployment image    
+    ->  When we create a Deployment object then it is going to have attached to it something called "pod template"
+        A pod-template is a block of configuration. It tells that a pod created by this deployment looks like.
+    ->  Deployment uses these template to create pods
+    ->  Deployment does not create pods itself, rather it reaches out to the master and then master creates
+        pod for deployment object. When pods has been created by master then Deployment needs some handle to
+        control that pod and that's the selector under spec property
+
+                                see image use of selector in Deployment.png
+===========================================================================================================
+                                        ClusterIP
+    ClusterIp is more restrictive version of the nodePort. It does not allow to access the objects inside the
+    Node(VM) from outside the node. Only objects inside the node can access the services.                                   
+
+===========================================================================================================
+                                            PVC (Persistent volume claim)
+For a pod running a container for a database image, all the data is stored in the file-system allocated for
+the container. There may be the chances that at some point of time this container crashes, in that case
+kubernetes master will create a new container. But data that was stored in the previous container is lost and
+cannot be recovered. So to prevent this we need PVC (Persistent volume claim)
+
+===========================================================================================================
+                                PVC.png
+
+With the implementation of PVC, whenever DB receives a request to read/write data then it will write data on
+the file-system of the host machine rather than the file-system allocated to the container.
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    We cannot increase directly number of replicas of a database container because they will access the
+    same PVC region and this will be dangerous. So we need some other configuration.
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+-> Volume - It is tied to a pod. If a container died the other container inside the pod can use this volume
+            But when pod dies then volume also dies with the container.
+            see Volume.png
+
+-> Persistent Volume - It is long term storage and is neither tied to a container nor a pod.
+                        see Persistent Volume.png
+
+-> Persistent Volume Claim - Actully, it is not a storage instance. It is something that we are going to
+                             attach to a pod config. Then we handover this pod config to kubernetes, it
+                             then find the volume claim from statically provisioned Persistent volume or 
+                             dynamically provisioned Persistent volume.
+
+                             see access modes.png
+
+
+
+
+
+
+
+
+=>>>> command
+        kubectl apply -f <file_name>
+        kubectl get <Object_name>                            (print the status of all the running pods)
+        kubectl describe <object-type> <object-name>        (Get detailed info about an object)
+        kubectl delete -f <path_to_config_file>
+        kubectl delete <object_type> <object_name>
+        kubectl set image <object_type>/<object_name> <container_name> = <new_image_to_use>     (to update the version of the image)
+            e.g kubectl set image deployment/client-deployment client=96ankur/multi-client:v5
+
+        kubectl create secret generic <secret_name> --from-literal key=value
+                                or
+                            docker-registry
+                                or
+                                tls
+        kubectl create secret generic pgpassword --from-literal PGPASSWORD=postgres_password
